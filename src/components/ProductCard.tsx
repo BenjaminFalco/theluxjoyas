@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ShoppingBag, Eye } from "lucide-react";
 import { Product } from "@/hooks/useProducts";
 import { openWhatsApp } from "@/lib/whatsapp";
+import { getInitialImageUrl, handleImageError, isGstaticUrl } from "@/lib/imageProxy";
 
 interface ProductCardProps {
   product: Product;
@@ -20,7 +21,9 @@ export const ProductCard = ({ product, index }: ProductCardProps) => {
     });
   };
 
-  const imageUrl = product.imagen || `https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=400&h=400&fit=crop&auto=format`;
+  const rawImageUrl = product.img_principal_url || product.img_thumbnail_url;
+  const imageUrl = getInitialImageUrl(rawImageUrl);
+  const isProxyDefault = rawImageUrl ? isGstaticUrl(rawImageUrl) : false;
 
   return (
     <motion.div
@@ -38,9 +41,8 @@ export const ProductCard = ({ product, index }: ProductCardProps) => {
               alt={product.nombre}
               className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
               loading="lazy"
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=400&h=400&fit=crop&auto=format";
-              }}
+              data-proxy-tried={isProxyDefault ? "true" : undefined}
+              onError={(e) => handleImageError(e, rawImageUrl)}
             />
             
             {/* Overlay on hover */}

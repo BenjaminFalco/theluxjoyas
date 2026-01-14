@@ -7,7 +7,8 @@ import { Footer } from "@/components/Footer";
 import { WhatsAppFloatingButton } from "@/components/WhatsAppFloatingButton";
 import { useProduct } from "@/hooks/useProducts";
 import { openWhatsApp } from "@/lib/whatsapp";
-import { useState } from "react";
+import { getInitialImageUrl, handleImageError, isGstaticUrl } from "@/lib/imageProxy";
+import { useEffect, useState } from "react";
 
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -24,16 +25,18 @@ const ProductDetail = () => {
     }
   };
 
-  // Generate placeholder images
-  const images = product?.imagenes?.length
-    ? product.imagenes
-    : [
-        product?.imagen || "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=600&h=600&fit=crop&auto=format",
-        "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=600&h=600&fit=crop&auto=format",
-        "https://images.unsplash.com/photo-1602751584552-8ba73aad10e1?w=600&h=600&fit=crop&auto=format",
-        "https://images.unsplash.com/photo-1603561596112-0a132b757442?w=600&h=600&fit=crop&auto=format",
-        "https://images.unsplash.com/photo-1611591437281-460bfbe1220a?w=600&h=600&fit=crop&auto=format",
-      ];
+  const galleryImages = [
+    product?.img_principal_url,
+    product?.img_zoom_url,
+    product?.img_galeria_1_url,
+  ].filter((img): img is string => Boolean(img));
+  const images = galleryImages.length ? galleryImages : ["/placeholder.svg"];
+  const mainImage = images[selectedImage] || "/placeholder.svg";
+  const isMainProxyDefault = galleryImages.length ? isGstaticUrl(mainImage) : false;
+
+  useEffect(() => {
+    setSelectedImage(0);
+  }, [product?.id]);
 
   if (isLoading) {
     return (
@@ -110,37 +113,44 @@ const ProductDetail = () => {
               {/* Main Image */}
               <div className="aspect-square rounded-2xl overflow-hidden glass-card">
                 <img
-                  src={images[selectedImage]}
+                  src={getInitialImageUrl(mainImage)}
                   alt={product.nombre}
                   className="w-full h-full object-cover"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=600&h=600&fit=crop&auto=format";
-                  }}
+                  data-proxy-tried={isMainProxyDefault ? "true" : undefined}
+                  onError={(e) =>
+                    handleImageError(e, galleryImages.length ? mainImage : undefined)
+                  }
                 />
               </div>
 
               {/* Thumbnails */}
               <div className="grid grid-cols-5 gap-3">
-                {images.map((img, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setSelectedImage(index)}
-                    className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${
-                      selectedImage === index
-                        ? "border-gold shadow-[0_0_15px_hsl(43_74%_49%/0.4)]"
-                        : "border-transparent opacity-60 hover:opacity-100"
-                    }`}
-                  >
-                    <img
-                      src={img}
-                      alt={`${product.nombre} - Vista ${index + 1}`}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=100&h=100&fit=crop&auto=format";
-                      }}
-                    />
-                  </button>
-                ))}
+                {images.map((img, index) => {
+                  const isProxyDefault = galleryImages.length
+                    ? isGstaticUrl(img)
+                    : false;
+                  return (
+                    <button
+                      key={index}
+                      onClick={() => setSelectedImage(index)}
+                      className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${
+                        selectedImage === index
+                          ? "border-gold shadow-[0_0_15px_hsl(43_74%_49%/0.4)]"
+                          : "border-transparent opacity-60 hover:opacity-100"
+                      }`}
+                    >
+                      <img
+                        src={getInitialImageUrl(img)}
+                        alt={`${product.nombre} - Vista ${index + 1}`}
+                        className="w-full h-full object-cover"
+                        data-proxy-tried={isProxyDefault ? "true" : undefined}
+                        onError={(e) =>
+                          handleImageError(e, galleryImages.length ? img : undefined)
+                        }
+                      />
+                    </button>
+                  );
+                })}
               </div>
             </motion.div>
 
